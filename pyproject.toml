@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "devsweep"
+version = "0.1.0"
+description = "Inventário e limpeza revisada de dependências Node.js e Python no Windows"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.gui-scripts]
+devsweep = "devsweep.app:main"
+
+[project.scripts]
+devsweep-scan = "devsweep.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["devsweep*"]
