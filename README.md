@@ -33,6 +33,16 @@ Também é possível abrir `iniciar.cmd`. Nenhuma instalação de pacote é nece
 5. Marque as pastas desejadas e confirme **Enviar selecionadas à Lixeira**.
 6. Restaure pelo Windows se necessário. Esvaziar a Lixeira, por decisão do usuário, libera o espaço.
 
+## Exportar inventário
+
+Após a busca, clique em **Exportar relatório** e escolha CSV ou JSON na janela de salvamento.
+O relatório contém todas as pastas exibidas, inclusive as bloqueadas; as marcações para limpeza não limitam a exportação.
+
+O JSON inclui a versão do aplicativo e do formato, a data de geração em UTC, as raízes das candidatas, os tamanhos lógicos,
+as restrições de cada pasta e os contadores da busca. Uma busca interrompida fica identificada como parcial (`cancelled`).
+As raízes aparecem somente quando há candidatas exibidas naquele alcance.
+O mesmo formato está disponível no terminal com `--json`. Os relatórios são informativos e não autorizam limpeza.
+
 ## Como a idade é estimada
 
 O aplicativo usa a alteração mais recente encontrada nas dependências e nos arquivos do projeto. Procura um manifesto próximo, como `package.json` ou `pyproject.toml`, e inspeciona os arquivos desse projeto, excluindo dependências, caches e `.git`.
@@ -96,4 +106,4 @@ py -3 -m venv .venv-build
 
 ## Desenvolvimento
 
-A ideia e a definição inicial do problema são de [LettoKarvat](https://github.com/LettoKarvat). A implementação inicial foi produzida com assistência de IA.
+A ideia e a definição inicial do problema são de [LettoKarvat](https://github.com/LettoKarvat). A implementação e as atualizações foram produzidas com assistência de IA.

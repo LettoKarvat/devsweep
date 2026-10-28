@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from . import __version__
-from .core import ScanOptions, export_csv, format_size, scan
+from .core import ScanOptions, export_csv, format_size, inventory_report, scan
 
 
 def main():
@@ -29,13 +29,7 @@ def main():
         if args.csv:
             export_csv(candidates, args.csv)
         if args.json:
-            print(json.dumps({"version": __version__, "read_only": True, "visited": result.visited,
-                              "errors": result.errors, "skipped": result.skipped,
-                              "logical_bytes": sum(item.snapshot.size for item in candidates),
-                              "candidates": [{"path": str(item.path), "project": str(item.project), "kind": item.kind,
-                                              "logical_bytes": item.snapshot.size, "files": item.snapshot.files,
-                                              "age_days": item.age_days(), "blocked": item.blocked} for item in candidates]},
-                             ensure_ascii=True, indent=2))
+            print(json.dumps(inventory_report(candidates, result), ensure_ascii=True, indent=2))
         else:
             for item in candidates:
                 print(f"{item.kind:12} {format_size(item.snapshot.size):>11} {item.age_days():>5} dias  {item.path}")

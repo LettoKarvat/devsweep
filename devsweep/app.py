@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
-from .core import Candidate, ScanOptions, export_csv, format_size, recycle_candidates, scan
+from .core import Candidate, ScanOptions, export_csv, export_json, format_size, recycle_candidates, scan
 from .windows import fixed_drives
 
 BG, PANEL, TEXT, MUTED, ACCENT = "#10151f", "#192130", "#eaf1fa", "#9baabd", "#7de2b9"
@@ -24,6 +24,7 @@ class App(tk.Tk):
         self.configure(bg=BG)
         self.roots = [Path.home()]
         self.candidates: dict[str, Candidate] = {}
+        self.last_scan_result = None
         self.checked: set[str] = set()
         self.messages: queue.Queue = queue.Queue()
         self.cancel = threading.Event()
@@ -136,7 +137,7 @@ class App(tk.Tk):
         self.mark_button.pack(side="left")
         self.clear_button = ttk.Button(actions, text="Desmarcar", command=self.clear_all)
         self.clear_button.pack(side="left", padx=8)
-        self.export_button = ttk.Button(actions, text="Exportar CSV", command=self.export)
+        self.export_button = ttk.Button(actions, text="Exportar relatório", command=self.export)
         self.export_button.pack(side="left")
         self.trash_button = ttk.Button(actions, text="Enviar selecionadas à Lixeira", state="disabled", command=self.start_cleanup)
         self.trash_button.pack(side="right")
@@ -183,6 +184,7 @@ class App(tk.Tk):
         self.cancel.clear()
         self.checked.clear()
         self.candidates.clear()
+        self.last_scan_result = None
         self.tree.delete(*self.tree.get_children())
         self.update_totals()
         self.set_busy(True, scanning=True)
@@ -273,10 +275,16 @@ class App(tk.Tk):
             messagebox.showinfo("Relatório", "Faça uma busca primeiro.")
             return
         destination = filedialog.asksaveasfilename(title="Exportar inventário", defaultextension=".csv",
-                                                 initialfile="devsweep-inventario.csv", filetypes=[("CSV", "*.csv")])
+                                                 initialfile="devsweep-inventario",
+                                                 filetypes=[("CSV", "*.csv"), ("JSON", "*.json")])
         if destination:
             try:
-                export_csv(list(self.candidates.values()), Path(destination))
+                path = Path(destination)
+                candidates = list(self.candidates.values())
+                if path.suffix.lower() == ".json":
+                    export_json(candidates, path, self.last_scan_result)
+                else:
+                    export_csv(candidates, path)
                 self.status.set(f"Inventário exportado: {destination}")
             except OSError as error:
                 messagebox.showerror("Exportar", str(error))
@@ -314,6 +322,7 @@ class App(tk.Tk):
                     self.status.set(f"{count:,} pastas percorridas · {path[-115:]}")
                 elif kind == "scanned":
                     result, visible = payload
+                    self.last_scan_result = result
                     self.add_rows(visible)
                     self.set_busy(False)
                     label = "Busca interrompida; resultado parcial" if result.cancelled else "Busca concluída"

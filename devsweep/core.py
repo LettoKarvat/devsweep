@@ -3,15 +3,18 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import json
 import os
 import stat
 import sys
 import threading
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
+
+from . import __version__
 
 CACHE_NAMES = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache"}
 SKIP_NAMES = {".git", "$recycle.bin", "system volume information", "recovery"}
@@ -327,6 +330,35 @@ def format_size(value: int) -> str:
             return f"{size:.1f} {unit}"
         size /= 1024
     return str(value)
+
+
+def inventory_report(candidates: list[Candidate], result: ScanResult | None = None) -> dict:
+    """Build an informational report; never serialize cleanup authorization records."""
+    return {
+        "schema_version": 1,
+        "version": __version__,
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "read_only": True,
+        "scopes": sorted({str(item.scope) for item in candidates}),
+        "visited": result.visited if result is not None else None,
+        "errors": result.errors if result is not None else None,
+        "skipped": result.skipped if result is not None else None,
+        "cancelled": result.cancelled if result is not None else None,
+        "logical_bytes": sum(item.snapshot.size for item in candidates),
+        "candidates": [
+            {"path": str(item.path), "project": str(item.project), "kind": item.kind,
+             "logical_bytes": item.snapshot.size, "files": item.snapshot.files,
+             "age_days": item.age_days(),
+             "modified_at": datetime.fromtimestamp(item.newest_ns / 1e9, timezone.utc).isoformat(timespec="seconds"),
+             "blocked": item.blocked}
+            for item in candidates
+        ],
+    }
+
+
+def export_json(candidates: list[Candidate], destination: Path, result: ScanResult | None = None) -> None:
+    destination.write_text(json.dumps(inventory_report(candidates, result), ensure_ascii=True, indent=2) + "\n",
+                           encoding="utf-8")
 
 
 def export_csv(candidates: list[Candidate], destination: Path) -> None:

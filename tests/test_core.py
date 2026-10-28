@@ -1,4 +1,5 @@
 import csv
+import json
 import os
 import subprocess
 import tempfile
@@ -9,7 +10,7 @@ from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
-from devsweep.core import (ScanOptions, export_csv, kind_of, measure_tree, normalize_roots,
+from devsweep.core import (ScanOptions, ScanResult, export_csv, export_json, inventory_report, kind_of, measure_tree, normalize_roots,
                            recycle_candidates, scan, validate_candidate, within)
 
 
@@ -150,6 +151,37 @@ class ScannerTests(unittest.TestCase):
             rows = list(csv.reader(handle))
         self.assertEqual(str(candidate.snapshot.size), rows[1][3])
         self.assertEqual(str(candidate.path), rows[1][1])
+
+    def test_json_report_preserves_blocked_paths_and_scan_context_without_changing_targets(self):
+        target = self.project("projeto-ação")
+        result = scan([self.root])
+        result.errors = 2
+        result.cancelled = True
+        candidate = replace(result.candidates[0], blocked="Leitura incompleta")
+        before = measure_tree(target)
+        destination = self.root / "inventory.json"
+        export_json([candidate], destination, result)
+        report = json.loads(destination.read_text(encoding="utf-8"))
+        self.assertTrue(report["read_only"])
+        self.assertTrue(report["cancelled"])
+        self.assertEqual(2, report["errors"])
+        self.assertEqual([str(self.root)], report["scopes"])
+        self.assertEqual(candidate.snapshot.size, report["logical_bytes"])
+        self.assertEqual(str(candidate.path), report["candidates"][0]["path"])
+        self.assertEqual("Leitura incompleta", report["candidates"][0]["blocked"])
+        self.assertTrue(report["generated_at"].endswith("+00:00"))
+        self.assertNotIn("fingerprint", report["candidates"][0])
+        self.assertNotIn("identity", report["candidates"][0])
+        self.assertEqual(before, measure_tree(target))
+
+    def test_empty_json_distinguishes_missing_scan_statistics_from_zero(self):
+        self.assertIsNone(inventory_report([])["visited"])
+        report = inventory_report([], ScanResult([]))
+        self.assertEqual(0, report["visited"])
+        self.assertEqual(0, report["logical_bytes"])
+        self.assertEqual([], report["candidates"])
+        self.assertEqual([], report["scopes"])
+        self.assertFalse(report["cancelled"])
 
     def test_symlinks_are_not_followed_or_removed(self):
         target = self.project()
